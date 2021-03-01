@@ -1,12 +1,17 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QThread
+
 import main2
 from PIL import Image
 import numpy as np
 import cv2
 import pytesseract
 import pyautogui
+from functools import partial
 from pytesseract import Output
 import multiprocessing
+import pickle
+import time
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -14,12 +19,40 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 class Test(main2.Ui_Foldem):
     def __init__(self):
         self.sorted_hand = ''
+        self.fx = ''
+        self.fy = ''
+        self.previous_input = {}
+        self.save_input = {'save_left_x': '',
+                     'save_left_y': '',
+                     'save_left_width': '',
+                     'save_left_height': '',
+                     'save_right_x': '',
+                     'save_right_y': '',
+                     'save_right_width': '',
+                     'save_right_height': ''
+                           }
 
     def setupUi2(self, Foldem2):
         super().setupUi(Foldem2)
         self.Update.clicked.connect(self.screengrab)
         self.Recognize.clicked.connect(self.recognize)
-        self.decision_qs.clicked.connect(lambda:self.decision(self.sorted_hand))
+        self.decision_qs.clicked.connect(lambda : self.decision(self.sorted_hand))
+        #self.decision_qs.clicked.connect(self.decision2)
+
+
+        #load save inputs
+        f = open('save_input.pkl','rb')
+        self.previous_input = pickle.load(f)
+        f.close()
+        #TODO: refactor this horrible shit, load values from pickle dictionary to input boxes better
+        self.LHInputX.setText(self.previous_input['save_left_x'])
+        self.LHInputY.setText(self.previous_input['save_left_y'])
+        self.LHInputX_width.setText(self.previous_input['save_left_width'])
+        self.LHInputY_height.setText(self.previous_input['save_left_height'])
+        self.RHInputX.setText(self.previous_input['save_right_x'])
+        self.RHInputY.setText(self.previous_input['save_right_y'])
+        self.RHInputX_width.setText(self.previous_input['save_right_width'])
+        self.RHInputY_height.setText(self.previous_input['save_right_height'])
 
     def screengrab(self):
         lx = self.LHInputX.text()
@@ -28,12 +61,20 @@ class Test(main2.Ui_Foldem):
         ry = self.RHInputY.text()
         fx = self.FoldX.text()
         fy = self.FoldY.text()
+        self.fx = self.FoldX.text()
+        self.fy = self.FoldY.text()
         l_width = self.LHInputX_width.text()
         l_height = self.LHInputY_height.text()
         r_width = self.RHInputX_width.text()
         r_height = self.RHInputY_height.text()
         f_width = self.FoldX_width.text()
         f_height = self.FoldY_height.text()
+
+        #save inputs
+        f = open('save_input.pkl', 'wb')
+        pickle_save_input = dict(zip(self.save_input,[lx,ly,l_width,l_height,rx,ry,r_width,r_height]))
+        pickle.dump(pickle_save_input, f)  # dump data to f
+        f.close()
 
         left_image = pyautogui.screenshot(region=(lx, ly, l_width, l_height))
         right_image = pyautogui.screenshot(region=(rx, ry, r_width, r_height))
@@ -57,10 +98,10 @@ class Test(main2.Ui_Foldem):
 
     # processing
     def get_grayscale(self, image):
-        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
     def thresholding(self, image):
-        return cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)[1]
+        return cv2.threshold(image, 160, 255, cv2.THRESH_BINARY)[1]
 
     def recognize(self):
         alphabet = "AKQJT98765432"
@@ -114,17 +155,33 @@ class Test(main2.Ui_Foldem):
             return hand in Range
 
         answer = decision_engine(input_hand)
+        while(answer == False):
+            self.click()
+            QThread.sleep(10)
+            answer = decision_engine(input_hand)
+            print(f'hand is {answer}')
+        else:
+            print('HAND!!!')
+
+
+
 
         self.decision_label.setText(str(answer))
         return answer
+
+    def decision2(self):
+        self.decision(self.sorted_hand)
+        return
 
 
     def click(self):
         (x, y) = pyautogui.position()
         # Your automated click
-        pyautogui.click(625, 1020)
+        pyautogui.click(int(self.fx)+10, int(self.fy)+10)
+        print('yo')
         # Move back to where the mouse was before click
         pyautogui.moveTo(x, y)
+        return
 
 
 

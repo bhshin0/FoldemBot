@@ -289,6 +289,19 @@
                <string>x</string>
               </property>
              </widget>
+             <widget class="QPushButton" name="pushButton">
+              <property name="geometry">
+               <rect>
+                <x>560</x>
+                <y>100</y>
+                <width>231</width>
+                <height>81</height>
+               </rect>
+              </property>
+              <property name="text">
+               <string>Cottage Inn</string>
+              </property>
+             </widget>
             </widget>
            </item>
           </layout>
